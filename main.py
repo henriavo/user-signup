@@ -71,41 +71,80 @@ form = """
 </html>
 """
 
+welcomeForm = """
+<form> method="get" action="/welcome">
+	<p name="username" ><b>Welcome, %s !</b>.</p>
+</form>
+
+"""
+
 import webapp2
+import re
 
 class MainHandler(webapp2.RequestHandler):
 
-	errorMsg = {"one": "That's not a valid username",
-                "two": "That's not a valid password",
-                "three": "Your passwords didn't match",
-                "four": "That's not a valid email."}
+	USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
+	PASSWORD_RE = re.compile(r"^.{3,20}$")
+	EMAIL_RE = re.compile(r"^[\S]+@[\S]+\.[\S]+$")
 
-	emptyMsg = {"one": "",
-            	"two": "",
-            	"three": "",
-            	"four": ""}
-
+	errorMsg = {"one": "",
+                "two": "",
+                "three": "",
+                "four": ""}
 
 	def get(self):
-		self.writeForm()
-		#below prints error msg with form
-		#self.writeForm(self.emptyMsg)
+		self.writeForm(self.errorMsg)
 
-	def writeForm(self, message=emptyMsg):
+
+	def writeForm(self, message):
 		self.response.write(form % message)
 
 	def post(self):
 		username = self.request.get('username')
-		password = self.request.get('pass')
+		password = self.request.get('password')
 		verify = self.request.get('verify')
 		email = self.request.get('email')
 
-		#TODO:
-		#veryfiy all user input
+		if(self.verifyUsername(username) and
+			self.verifyPass(password) and
+			self.verifyEmail(email) and
+			password == verify):
+			
+			self.redirect("/welcome?username=%s" % username)
+
+		else:
+			if(self.verifyUsername(username) == "None"):
+				self.errorMsg['one'] = "That's not a valid username"
+			
+			if(self.verifyPass(password) == "None"):
+				self.errorMsg['two'] = "That's not a valid password"
+
+			if(password != verify):
+				self.errorMsg['three'] = "Your passwords didn't match"
+
+			if(self.verifyEmail(email) == "None"):
+				self.errorMsg['four'] = "That's not a valid email."	
+
+			self.writeForm(self.errorMsg)
 
 
+	def verifyUsername(self, username):
+		return self.USER_RE.match(username)
+
+	def verifyPass(self, password):
+		return self.PASSWORD_RE.match(password)
+
+	def verifyEmail(self, email):
+		return self.EMAIL_RE.match(email)
+
+
+class WelcomeHandler(webapp2.RequestHandler): 
+	def get(self):
+		verifiedUserName = self.request.get('username')
+		self.response.write("<b>Welcome, %s!<b>" % verifiedUserName)
 
 
 app = webapp2.WSGIApplication([
-    ('/', MainHandler)
+    ('/', MainHandler),
+    ('/welcome',WelcomeHandler)
 ], debug=True)
